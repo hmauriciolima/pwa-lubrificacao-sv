@@ -1,11 +1,11 @@
 {
-  "name": "Registro de Abastecimento - Santa Vergínia",
-  "short_name": "Abastecimento SV",
-  "description": "Registro de abastecimento de equipamentos",
-  "start_url": "/",
+  "name": "Registro de Lubrificação - Santa Vergínia",
+  "short_name": "Lubrificação SV",
+  "description": "Registro de lubrificação offline",
+  "start_url": "/pwa-lubrificacao-sv/",
   "display": "standalone",
   "background_color": "#f0f2f5",
-  "theme_color": "#1a365d",
+  "theme_color": "#28a745",
   "orientation": "portrait",
   "icons": [
     {

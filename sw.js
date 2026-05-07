@@ -1,5 +1,9 @@
-const CACHE_NAME = "abastecimento-sv-v1";
-const ARQUIVOS   = ["/", "/index.html", "/manifest.json"];
+const CACHE_NAME = "lubrificacao-sv-v1";
+const ARQUIVOS   = [
+  "/pwa-lubrificacao-sv/",
+  "/pwa-lubrificacao-sv/index.html",
+  "/pwa-lubrificacao-sv/manifest.json"
+];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ARQUIVOS)));
@@ -17,7 +21,6 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   if (e.request.url.includes("script.google.com")) return;
-  if (e.request.url.includes("spreadsheets")) return;
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
