@@ -1,0 +1,17 @@
+{
+  "name": "Registro de Abastecimento - Santa Vergínia",
+  "short_name": "Abastecimento SV",
+  "description": "Registro de abastecimento de equipamentos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1a365d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    }
+  ]
+}

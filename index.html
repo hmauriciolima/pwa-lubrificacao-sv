@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Abastecimento - Santa Vergínia</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a365d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Abastecimento SV">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 15px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; max-width: 700px; margin: auto; }
+    .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+    .logo { width: 90px; height: auto; }
+    .header h1 { font-size: 18px; color: #1a365d; font-weight: bold; }
+    .header p { font-size: 12px; color: #666; }
+    #status-bar { padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+    .online  { background: #d4edda; color: #155724; }
+    .offline { background: #fff3cd; color: #856404; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media(max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+    .section-title { font-size: 13px; font-weight: bold; color: #1a365d; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+    label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; display: block; margin-bottom: 4px; margin-top: 10px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .radio-group { display: flex; gap: 15px; margin-top: 5px; }
+    .radio-group label { text-transform: none; font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .btn-salvar { width: 100%; padding: 14px; background: #1a365d; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 20px; cursor: pointer; transition: 0.3s; }
+    .btn-salvar:hover { background: #2a4a7f; }
+    .btn-salvar:disabled { background: #ccc; }
+    #fila-badge { background: #dc3545; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 8px; display: none; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+    .historico-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .historico-header h3 { font-size: 14px; color: #1a365d; }
+    #historico-body { display: none; margin-top: 10px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #1a365d; color: white; padding: 6px 8px; text-align: left; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) { background: #f9f9f9; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="header">
+    <img src="https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg" class="logo" alt="Logo SV">
+    <div>
+      <h1>⛽ REGISTRO DE ABASTECIMENTO - SV</h1>
+      <p>Controladoria Bataguassu-MS</p>
+    </div>
+  </div>
+
+  <div id="status-bar" class="offline">⏳ Verificando conexão...</div>
+
+  <form id="form">
+    <div class="grid">
+      <!-- COLUNA 1 -->
+      <div>
+        <div class="section-title">📍 Gestão de Fluxo</div>
+
+        <label>Data do Registro</label>
+        <input type="date" id="data" required>
+
+        <label>Origem</label>
+        <div class="radio-group">
+          <label><input type="radio" name="origem" value="POSTO SEDE" checked> POSTO SEDE</label>
+          <label><input type="radio" name="origem" value="COMBOIO"> COMBOIO</label>
+        </div>
+
+        <label>Local / Destino</label>
+        <select id="destino" required>
+          <option value="">Carregando...</option>
+        </select>
+
+        <label>Atividade / Operação</label>
+        <select id="atividade" required>
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+
+      <!-- COLUNA 2 -->
+      <div>
+        <div class="section-title">🚜 Ativo / Equipamento</div>
+
+        <label>Modelo do Equipamento</label>
+        <select id="frota" required>
+          <option value="">Carregando...</option>
+        </select>
+
+        <label>ID Frota / Placa</label>
+        <input type="text" id="id_frota" placeholder="Ex: 3385" required>
+
+        <label>Volume (Lts)</label>
+        <input type="number" id="volume" placeholder="0.0" step="0.1" min="0" required>
+
+        <label>Horímetro / KM</label>
+        <input type="number" id="horimetro" placeholder="0.0" step="0.1" min="0">
+      </div>
+    </div>
+
+    <button type="submit" class="btn-salvar" id="btn">
+      ✅ SALVAR NO SISTEMA <span id="fila-badge"></span>
+    </button>
+  </form>
+
+  <hr class="divider">
+
+  <div class="historico-header" onclick="toggleHistorico()">
+    <h3>📊 Ver Últimos Registros</h3>
+    <span id="hist-arrow">▼</span>
+  </div>
+  <div id="historico-body">
+    <div id="historico-content">Clique em "Ver Últimos Registros" para carregar.</div>
+  </div>
+
+</div>
+
+<script>
+  // ─── CONFIGURAÇÃO ─────────────────────────────────────────
+  const APPS_SCRIPT_URL = https://script.google.com/macros/s/AKfycbwHXyh5M_0osteeHISs5yC55aIE8hHiWgpk1pIteRKnhggeuvPUZht05Ct-jwRVvStM/exec;
+  // ──────────────────────────────────────────────────────────
+
+  const DB_NAME    = "abastecimento_sv";
+  const STORE_NAME = "fila_envio";
+  let db;
+
+  // Define data padrão como hoje
+  document.getElementById("data").value = new Date().toISOString().split("T")[0];
+
+  // ── IndexedDB ─────────────────────────────────────────────
+  function abrirDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(STORE_NAME, { keyPath: "id" });
+      req.onsuccess = e => { db = e.target.result; resolve(db); };
+      req.onerror   = e => reject(e);
+    });
+  }
+  function salvarNaFila(dados) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).add(dados).onsuccess = resolve;
+      tx.onerror = reject;
+    });
+  }
+  function contarFila() {
+    return new Promise(resolve => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      tx.objectStore(STORE_NAME).count().onsuccess = e => resolve(e.target.result);
+    });
+  }
+  function buscarTodosDaFila() {
+    return new Promise(resolve => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      tx.objectStore(STORE_NAME).getAll().onsuccess = e => resolve(e.target.result);
+    });
+  }
+  function removerDaFila(id) {
+    return new Promise(resolve => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).delete(id).onsuccess = resolve;
+    });
+  }
+
+  // ── Status bar ────────────────────────────────────────────
+  async function atualizarStatus() {
+    const bar   = document.getElementById("status-bar");
+    const badge = document.getElementById("fila-badge");
+    const qtd   = await contarFila();
+
+    if (navigator.onLine) {
+      bar.className   = "online";
+      bar.textContent = "🟢 Online — dados serão enviados à planilha";
+    } else {
+      bar.className   = "offline";
+      bar.textContent = "🟡 Offline — registro salvo no celular";
+    }
+
+    if (qtd > 0) {
+      badge.style.display = "inline";
+      badge.textContent   = qtd + " pendente" + (qtd > 1 ? "s" : "");
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  // ── Sincronizar fila ──────────────────────────────────────
+  async function sincronizarFila() {
+    if (!navigator.onLine) return;
+    const registros = await buscarTodosDaFila();
+    if (registros.length === 0) return;
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(registros),
+        headers: { "Content-Type": "application/json" }
+      });
+      const json = await res.json();
+      if (json.status === "ok") {
+        for (const r of registros) await removerDaFila(r.id);
+        alert("✅ " + registros.length + " registro(s) sincronizado(s) com a planilha!");
+      }
+    } catch(err) {
+      console.warn("Erro ao sincronizar:", err);
+    }
+    await atualizarStatus();
+  }
+
+  // ── Carrega listas com cache ──────────────────────────────
+  async function carregarListas() {
+    await carregarSelect("frota",    "frota",      "frotas",     "Selecione o Equipamento", "cache_frotas");
+    await carregarSelect("destino",  "locais",     "locais",     "Selecione o Local",       "cache_locais");
+    await carregarSelect("atividade","atividades", "atividades", "Selecione a Atividade",   "cache_atividades");
+  }
+
+  async function carregarSelect(idEl, action, chave, placeholder, cacheKey) {
+    const sel = document.getElementById(idEl);
+    if (navigator.onLine) {
+      try {
+        const res  = await fetch(APPS_SCRIPT_URL + "?action=" + action);
+        const json = await res.json();
+        if (json.status === "ok") {
+          localStorage.setItem(cacheKey, JSON.stringify(json[chave]));
+          preencherSelect(sel, json[chave], placeholder);
+          return;
+        }
+      } catch(e) { /* cai para cache */ }
+    }
+    const cache = localStorage.getItem(cacheKey);
+    if (cache) {
+      preencherSelect(sel, JSON.parse(cache), placeholder + " (cache)");
+    } else {
+      sel.innerHTML = '<option value="">Sem dados — conecte-se uma vez</option>';
+    }
+  }
+
+  function preencherSelect(sel, lista, placeholder) {
+    sel.innerHTML = '<option value="">' + placeholder + '</option>';
+    lista.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = opt.text = item;
+      sel.add(opt);
+    });
+  }
+
+  // ── Submit ────────────────────────────────────────────────
+  document.getElementById("form").onsubmit = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn");
+    btn.disabled    = true;
+    btn.textContent = "Salvando...";
+
+    const dataVal = document.getElementById("data").value;
+    const [ano, mes, dia] = dataVal.split("-");
+
+    const dados = {
+      id:            "ID-" + Date.now(),
+      DATA:          dia + "/" + mes + "/" + ano,
+      ORIGEM:        document.querySelector('input[name="origem"]:checked').value,
+      LOCAL_DESTINO: document.getElementById("destino").value,
+      FROTA:         document.getElementById("frota").value,
+      ID_FROTA:      document.getElementById("id_frota").value.trim().toUpperCase(),
+      Qtde:          document.getElementById("volume").value,
+      RS_LTS:        "",
+      HORIMETRO:     document.getElementById("horimetro").value,
+      ATIVIDADE:     document.getElementById("atividade").value
+    };
+
+    if (navigator.onLine) {
+      try {
+        const res  = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(dados),
+          headers: { "Content-Type": "application/json" }
+        });
+        const json = await res.json();
+        if (json.status === "ok") {
+          alert("✅ Registro salvo na planilha!");
+          document.getElementById("form").reset();
+          document.getElementById("data").value = new Date().toISOString().split("T")[0];
+        } else throw new Error(json.mensagem);
+      } catch(err) {
+        await salvarNaFila(dados);
+        alert("⚠️ Erro na conexão. Salvo no celular — será sincronizado depois.");
+        document.getElementById("form").reset();
+        document.getElementById("data").value = new Date().toISOString().split("T")[0];
+      }
+    } else {
+      await salvarNaFila(dados);
+      alert("📱 Sem sinal. Registro salvo no celular!\nSerá enviado quando conectar.");
+      document.getElementById("form").reset();
+      document.getElementById("data").value = new Date().toISOString().split("T")[0];
+    }
+
+    btn.disabled    = false;
+    btn.textContent = "✅ SALVAR NO SISTEMA";
+    await atualizarStatus();
+  };
+
+  // ── Histórico ─────────────────────────────────────────────
+  function toggleHistorico() {
+    const body  = document.getElementById("historico-body");
+    const arrow = document.getElementById("hist-arrow");
+    if (body.style.display === "none" || body.style.display === "") {
+      body.style.display = "block";
+      arrow.textContent  = "▲";
+      carregarHistorico();
+    } else {
+      body.style.display = "none";
+      arrow.textContent  = "▼";
+    }
+  }
+
+  async function carregarHistorico() {
+    const div = document.getElementById("historico-content");
+    if (!navigator.onLine) {
+      div.innerHTML = "<p style='color:#856404;padding:10px'>Sem conexão — histórico indisponível offline.</p>";
+      return;
+    }
+    div.innerHTML = "<p style='padding:10px'>Carregando...</p>";
+    try {
+      const BASE = `https://docs.google.com/spreadsheets/d/1wbpQ91qD4E8Jwj7w0cXPYqDl6ldJnApU-pJLb_0ZOoo/gviz/tq?tqx=out:csv&gid=0`;
+      const res  = await fetch(BASE);
+      const txt  = await res.text();
+      const rows = txt.trim().split("\n").map(r => r.split(",").map(c => c.replace(/"/g,"")));
+      const headers = rows[0];
+      const data    = rows.slice(-10).reverse();
+      let html = "<table><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+      data.forEach(r => { html += "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>"; });
+      html += "</table>";
+      div.innerHTML = html;
+    } catch(err) {
+      div.innerHTML = "<p style='color:red;padding:10px'>Erro ao carregar histórico.</p>";
+    }
+  }
+
+  // ── Inicialização ─────────────────────────────────────────
+  window.addEventListener("load", async () => {
+    await abrirDB();
+    await carregarListas();
+    await atualizarStatus();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("SW registrado"))
+        .catch(err => console.warn("SW erro:", err));
+    }
+  });
+
+  window.addEventListener("online",  async () => { await atualizarStatus(); sincronizarFila(); });
+  window.addEventListener("offline", async () => { await atualizarStatus(); });
+</script>
+</body>
+</html>
