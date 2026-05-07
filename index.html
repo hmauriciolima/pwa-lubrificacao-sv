@@ -25,7 +25,6 @@
     #status-bar { padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-align: center; }
     .online  { background: #d4edda; color: #155724; }
     .offline { background: #fff3cd; color: #856404; }
-    #fila-badge { background: #dc3545; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 6px; display: none; }
   </style>
 </head>
 <body>
@@ -82,9 +81,7 @@
     <label>Próxima Troca</label>
     <input type="text" id="proxima" placeholder="Ex: 5500h ou 20/06/2026">
 
-    <button type="submit" id="btn">
-      SALVAR <span id="fila-badge"></span>
-    </button>
+    <button type="submit" id="btn">SALVAR</button>
   </form>
 </div>
 
@@ -95,6 +92,7 @@
   const STORE_NAME = "fila_envio";
   let db;
 
+  // ── IndexedDB ─────────────────────────────────────────────
   function abrirDB() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, 1);
@@ -129,17 +127,147 @@
     });
   }
 
+  // ── Status ────────────────────────────────────────────────
   async function atualizarStatus() {
-    const bar   = document.getElementById("status-bar");
-    const badge = document.getElementById("fila-badge");
-    const btn   = document.getElementById("btn");
-    const qtd   = await contarFila();
-
+    const bar = document.getElementById("status-bar");
+    const qtd = await contarFila();
     if (navigator.onLine) {
       bar.className   = "online";
-      bar.textContent = "🟢 Online — dados serão enviados à planilha";
-      btn.innerHTML   = "SALVAR NA PLANILHA" + (qtd > 0 ? ' <span id="fila-badge" style="background:#dc3545;color:white;border-radius:12px;padding:2px 8px;font-size:11px">' + qtd + " pendente" + (qtd > 1 ? "s" : "") + "</span>" : "");
+      bar.textContent = "🟢 Online" + (qtd > 0 ? " — " + qtd + " pendente(s) para sincronizar" : " — pronto para salvar");
     } else {
       bar.className   = "offline";
-      bar.textContent = "🟡 Offline — registro salvo no celular";
-      btn.innerHTML   = "SALVAR NO CELULAR" + (qtd > 0 ? ' <span style="background:#dc3545;color:white;border-radius:12px;padding:2px 8px;font-size:11px">' + qtd + " pendente" + (qtd > 1 ? "s" : ""
+      bar.textContent = "🟡 Offline — registro será salvo no celular" + (qtd > 0 ? " (" + qtd + " pendente(s))" : "");
+    }
+  }
+
+  // ── Sincronizar fila ──────────────────────────────────────
+  async function sincronizarFila() {
+    if (!navigator.onLine) return;
+    const registros = await buscarTodosDaFila();
+    if (registros.length === 0) return;
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method:   "POST",
+        redirect: "follow",
+        body:     JSON.stringify(registros),
+        headers:  { "Content-Type": "text/plain" }
+      });
+      const json = await res.json();
+      if (json.status === "ok") {
+        for (const r of registros) await removerDaFila(r.id);
+        alert("✅ " + registros.length + " registro(s) sincronizado(s) com a planilha!");
+      }
+    } catch(err) { console.warn("Erro ao sincronizar:", err); }
+    await atualizarStatus();
+  }
+
+  // ── Carrega selects com cache ─────────────────────────────
+  async function carregarListas() {
+    await carregarSelect("frota",        "equipamentos",  "equipamentos",  "Selecione o Equipamento", "cache_eq");
+    await carregarSelect("lubrificante", "lubrificantes", "lubrificantes", "Selecione o Produto",     "cache_lub");
+  }
+
+  async function carregarSelect(idEl, action, chave, placeholder, cacheKey) {
+    const sel = document.getElementById(idEl);
+    if (navigator.onLine) {
+      try {
+        const res  = await fetch(APPS_SCRIPT_URL + "?action=" + action, {
+          redirect: "follow",
+          headers:  { "Content-Type": "text/plain" }
+        });
+        const data = await res.json();
+        if (data.status === "ok") {
+          localStorage.setItem(cacheKey, JSON.stringify(data[chave]));
+          preencherSelect(sel, data[chave], placeholder);
+          return;
+        }
+      } catch(e) { console.warn("Erro fetch:", e); }
+    }
+    const cache = localStorage.getItem(cacheKey);
+    if (cache) {
+      preencherSelect(sel, JSON.parse(cache), placeholder + " (cache)");
+    } else {
+      sel.innerHTML = '<option value="">Sem dados — conecte-se uma vez</option>';
+    }
+  }
+
+  function preencherSelect(sel, lista, placeholder) {
+    sel.innerHTML = '<option value="">' + placeholder + '</option>';
+    lista.forEach(item => {
+      const opt = document.createElement("option");
+      if (item.frota !== undefined) {
+        opt.value = opt.text = item.frota + " - " + item.descricao;
+      } else {
+        opt.value = opt.text = item.nome + (item.tipo ? " [" + item.tipo + "]" : "");
+      }
+      sel.add(opt);
+    });
+  }
+
+  // ── Submit ────────────────────────────────────────────────
+  document.getElementById("form").onsubmit = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn");
+    btn.disabled    = true;
+    btn.textContent = "Salvando...";
+
+    const dados = {
+      id:                  "ID-" + Date.now(),
+      frota:               document.getElementById("frota").value,
+      tipo_servico:        document.getElementById("tipo_servico").value,
+      motivo:              document.getElementById("motivo").value,
+      lubrificante:        document.getElementById("lubrificante").value,
+      responsavel:         document.getElementById("responsavel").value,
+      local:               document.getElementById("local").value,
+      servico_especifico:  document.getElementById("servico").value,
+      qtd:                 document.getElementById("qtd").value,
+      valor:               document.getElementById("valor").value,
+      horimetro_atual:     document.getElementById("atual").value,
+      horimetro_anterior:  document.getElementById("anterior").value,
+      proxima_troca:       document.getElementById("proxima").value
+    };
+
+    if (navigator.onLine) {
+      try {
+        const res  = await fetch(APPS_SCRIPT_URL, {
+          method:   "POST",
+          redirect: "follow",
+          body:     JSON.stringify(dados),
+          headers:  { "Content-Type": "text/plain" }
+        });
+        const json = await res.json();
+        if (json.status === "ok") {
+          alert("✅ Registro salvo na planilha!");
+          document.getElementById("form").reset();
+        } else throw new Error(json.mensagem);
+      } catch(err) {
+        await salvarNaFila(dados);
+        alert("⚠️ Erro na conexão. Salvo no celular — será sincronizado depois.");
+        document.getElementById("form").reset();
+      }
+    } else {
+      await salvarNaFila(dados);
+      alert("📱 Sem sinal. Salvo no celular!\nSerá enviado quando conectar.");
+      document.getElementById("form").reset();
+    }
+
+    btn.disabled    = false;
+    btn.textContent = "SALVAR";
+    await atualizarStatus();
+  };
+
+  // ── Inicialização ─────────────────────────────────────────
+  window.addEventListener("load", async () => {
+    await abrirDB();
+    await carregarListas();
+    await atualizarStatus();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW erro:", err));
+    }
+  });
+
+  window.addEventListener("online",  async () => { await atualizarStatus(); sincronizarFila(); });
+  window.addEventListener("offline", async () => { await atualizarStatus(); });
+</script>
+</body>
+</html>
