@@ -86,7 +86,7 @@
 </div>
 
 <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHXyh5M_0osteeHISs5yC55aIE8hHiWgpk1pIteRKnhggeuvPUZht05Ct-jwRVvStM/exec";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOA8Uo9HtQDOyWn7lii6eExsqaFdNK5iKN7_HOWtyhz_9xaPMue0qDxnZjgFRRgYMr/exec";
 
   const DB_NAME    = "lubrificacao_sv_offline";
   const STORE_NAME = "fila_envio";
@@ -101,10 +101,10 @@
       req.onerror   = e => reject(e);
     });
   }
-  function salvarNaFila(dados) {
+  function salvarNaFila(d) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).add(dados).onsuccess = resolve;
+      tx.objectStore(STORE_NAME).add(d).onsuccess = resolve;
       tx.onerror = reject;
     });
   }
@@ -127,6 +127,26 @@
     });
   }
 
+  // ── JSONP ─────────────────────────────────────────────────
+  function jsonp(action) {
+    return new Promise((resolve, reject) => {
+      const cb  = "cb_" + Date.now();
+      const tag = document.createElement("script");
+      tag.src   = APPS_SCRIPT_URL + "?action=" + action + "&callback=" + cb;
+      window[cb] = function(data) {
+        resolve(data);
+        delete window[cb];
+        document.body.removeChild(tag);
+      };
+      tag.onerror = () => {
+        reject(new Error("JSONP falhou"));
+        delete window[cb];
+        document.body.removeChild(tag);
+      };
+      document.body.appendChild(tag);
+    });
+  }
+
   // ── Status ────────────────────────────────────────────────
   async function atualizarStatus() {
     const bar = document.getElementById("status-bar");
@@ -136,7 +156,7 @@
       bar.textContent = "🟢 Online" + (qtd > 0 ? " — " + qtd + " pendente(s) para sincronizar" : " — pronto para salvar");
     } else {
       bar.className   = "offline";
-      bar.textContent = "🟡 Offline — registro será salvo no celular" + (qtd > 0 ? " (" + qtd + " pendente(s))" : "");
+      bar.textContent = "🟡 Offline — salvo no celular" + (qtd > 0 ? " (" + qtd + " pendente(s))" : "");
     }
   }
 
@@ -161,7 +181,7 @@
     await atualizarStatus();
   }
 
-  // ── Carrega selects com cache ─────────────────────────────
+  // ── Carrega selects via JSONP ─────────────────────────────
   async function carregarListas() {
     await carregarSelect("frota",        "equipamentos",  "equipamentos",  "Selecione o Equipamento", "cache_eq");
     await carregarSelect("lubrificante", "lubrificantes", "lubrificantes", "Selecione o Produto",     "cache_lub");
@@ -171,17 +191,13 @@
     const sel = document.getElementById(idEl);
     if (navigator.onLine) {
       try {
-        const res  = await fetch(APPS_SCRIPT_URL + "?action=" + action, {
-          redirect: "follow",
-          headers:  { "Content-Type": "text/plain" }
-        });
-        const data = await res.json();
+        const data = await jsonp(action);
         if (data.status === "ok") {
           localStorage.setItem(cacheKey, JSON.stringify(data[chave]));
           preencherSelect(sel, data[chave], placeholder);
           return;
         }
-      } catch(e) { console.warn("Erro fetch:", e); }
+      } catch(e) { console.warn("JSONP erro:", e); }
     }
     const cache = localStorage.getItem(cacheKey);
     if (cache) {
@@ -242,12 +258,12 @@
         } else throw new Error(json.mensagem);
       } catch(err) {
         await salvarNaFila(dados);
-        alert("⚠️ Erro na conexão. Salvo no celular — será sincronizado depois.");
+        alert("⚠️ Salvo no celular — será sincronizado quando conectar.");
         document.getElementById("form").reset();
       }
     } else {
       await salvarNaFila(dados);
-      alert("📱 Sem sinal. Salvo no celular!\nSerá enviado quando conectar.");
+      alert("📱 Sem sinal. Salvo no celular!");
       document.getElementById("form").reset();
     }
 
@@ -262,7 +278,7 @@
     await carregarListas();
     await atualizarStatus();
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW erro:", err));
+      navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW:", err));
     }
   });
 
