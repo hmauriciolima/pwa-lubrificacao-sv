@@ -17,6 +17,18 @@
     h3 { margin: 0 0 20px 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
     label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; display: block; margin-top: 12px; text-align: left; }
     input, select, button { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+    
+    /* Ajuste para o select múltiplo */
+    select[multiple] {
+      height: 120px;
+      padding: 5px;
+    }
+    select[multiple] option {
+      padding: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .hint { font-size: 10px; color: #888; text-align: left; margin-bottom: 5px; }
+
     .row { display: flex; gap: 8px; }
     .row input, .row select { width: 50%; }
     button { background: #28a745; color: white; border: none; font-weight: bold; margin-top: 20px; cursor: pointer; transition: 0.3s; border-radius: 6px; }
@@ -55,7 +67,8 @@
     </div>
 
     <label>Lubrificante / Filtro</label>
-    <select id="lubrificante" required>
+    <div class="hint">Segure Ctrl (ou clique e arraste) para selecionar vários</div>
+    <select id="lubrificante" required multiple>
       <option value="">Carregando...</option>
     </select>
 
@@ -208,7 +221,7 @@
   }
 
   function preencherSelect(sel, lista, placeholder) {
-    sel.innerHTML = '<option value="">' + placeholder + '</option>';
+    sel.innerHTML = sel.multiple ? '' : '<option value="">' + placeholder + '</option>';
     lista.forEach(item => {
       const opt = document.createElement("option");
       if (item.frota !== undefined) {
@@ -227,12 +240,17 @@
     btn.disabled    = true;
     btn.textContent = "Salvando...";
 
+    // Captura múltiplos lubrificantes selecionados
+    const selectLub = document.getElementById("lubrificante");
+    const selecionados = Array.from(selectLub.selectedOptions).map(option => option.value);
+    const lubrificantesTexto = selecionados.join(" / ");
+
     const dados = {
       id:                  "ID-" + Date.now(),
       frota:               document.getElementById("frota").value,
       tipo_servico:        document.getElementById("tipo_servico").value,
       motivo:              document.getElementById("motivo").value,
-      lubrificante:        document.getElementById("lubrificante").value,
+      lubrificante:        lubrificantesTexto, // Agora envia a lista separada por "/"
       responsavel:         document.getElementById("responsavel").value,
       local:               document.getElementById("local").value,
       servico_especifico:  document.getElementById("servico").value,
